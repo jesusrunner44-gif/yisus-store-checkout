@@ -1,0 +1,15 @@
+{
+  "name": "yisus-store-checkout",
+  "version": "1.0.0",
+  "description": "Mercado Pago Checkout Pro serverless API for Yisus Store",
+  "main": "api/create-preference.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
