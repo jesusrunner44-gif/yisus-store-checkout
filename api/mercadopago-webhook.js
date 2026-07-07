@@ -26,13 +26,28 @@ export default async function handler(req, res) {
   if (!orderId || !paymentStatus) return res.status(200).end();
 
   const updates = {
-    mercado_pago_payment_id: String(paymentId),
     payment_status: paymentStatus,
+    mercado_pago_payment_id: String(paymentId),
   };
 
-  const paymentMethod =
-    payment.payment_type_id || payment.payment_method_id || null;
-  if (paymentMethod) updates.payment_method = paymentMethod;
+  if (payment.payment_type_id || payment.payment_method_id) {
+    updates.payment_method = payment.payment_type_id || payment.payment_method_id;
+  }
+  if (payment.transaction_amount != null) {
+    updates.paid_amount = payment.transaction_amount;
+  }
+  if (payment.currency_id) {
+    updates.currency = payment.currency_id;
+  }
+  if (payment.installments != null) {
+    updates.installments = payment.installments;
+  }
+  if (payment.payer?.email) {
+    updates.payer_email = payment.payer.email;
+  }
+  if (paymentStatus === 'approved' && payment.date_approved) {
+    updates.approved_at = payment.date_approved;
+  }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 

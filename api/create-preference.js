@@ -6,6 +6,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 const MP_API_URL = 'https://api.mercadopago.com/checkout/preferences';
+const WEBHOOK_URL = 'https://yisus-store-checkout.vercel.app/api/mercadopago-webhook';
 
 function setCORSHeaders(req, res) {
   const origin = req.headers.origin;
@@ -62,18 +63,18 @@ export default async function handler(req, res) {
 
   const {
     title, price, quantity, shipping,
-    coupon_code, discount_amount, payment_method, internal_notes,
-    shipping_cost,
+    coupon_code, discount_amount, payment_method, internal_notes, shipping_cost,
   } = body;
 
   const total = price * quantity;
+  const orderNumber = generateOrderNumber();
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const { data: order, error: dbError } = await supabase
     .from('orders')
     .insert({
-      order_number: generateOrderNumber(),
+      order_number: orderNumber,
       product_title: title,
       quantity,
       total,
@@ -115,11 +116,9 @@ export default async function handler(req, res) {
     payer: { email: shipping.email },
     metadata: {
       order_id: orderId,
-      customer_name: shipping.fullName,
+      order_number: orderNumber,
       customer_email: shipping.email,
       customer_phone: shipping.phone,
-      city: shipping.city,
-      address: shipping.address,
     },
     back_urls: {
       success: 'https://yisusstore.com/gracias',
@@ -127,6 +126,7 @@ export default async function handler(req, res) {
       pending: 'https://yisusstore.com/pago-pendiente',
     },
     auto_return: 'approved',
+    notification_url: WEBHOOK_URL,
   };
 
   const mpResponse = await fetch(MP_API_URL, {
