@@ -48,7 +48,7 @@ function resolveItems(body) {
       currency_id: 'COP',
     }));
 
-    const productTitle = items.map((i) => i.title).join(', ');
+    const productTitle = items.map((i) => `${i.title} x${i.quantity}`).join(' + ');
     const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
     const total = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
 
