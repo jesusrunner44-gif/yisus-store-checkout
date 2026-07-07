@@ -8,6 +8,10 @@ const ALLOWED_ORIGINS = [
 const MP_API_URL = 'https://api.mercadopago.com/checkout/preferences';
 const WEBHOOK_URL = 'https://yisus-store-checkout.vercel.app/api/mercadopago-webhook';
 
+const REQUIRED_SHIPPING = [
+  'fullName', 'email', 'phone', 'department', 'city', 'address', 'neighborhood',
+];
+
 function setCORSHeaders(req, res) {
   const origin = req.headers.origin;
   if (ALLOWED_ORIGINS.includes(origin)) {
@@ -17,33 +21,66 @@ function setCORSHeaders(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-const REQUIRED_FIELDS = ['title', 'price', 'quantity'];
-const REQUIRED_SHIPPING = [
-  'fullName', 'email', 'phone', 'department', 'city', 'address', 'neighborhood',
-];
+function generateOrderNumber() {
+  return `YS-${Date.now()}`;
+}
 
-function validate(body) {
-  for (const field of REQUIRED_FIELDS) {
-    if (body[field] === undefined || body[field] === null || body[field] === '') {
-      return `Missing required field: ${field}`;
+// Normalizes body into a validated items array and order summary fields.
+// Returns { items, productTitle, totalQuantity, total, error }
+function resolveItems(body) {
+  if (Array.isArray(body.items) && body.items.length > 0) {
+    for (const item of body.items) {
+      if (!item.title || typeof item.title !== 'string') {
+        return { error: 'Each item must have a valid title.' };
+      }
+      if (typeof item.unit_price !== 'number' || item.unit_price <= 0) {
+        return { error: `Item "${item.title}" must have a valid unit_price.` };
+      }
+      if (typeof item.quantity !== 'number' || item.quantity <= 0) {
+        return { error: `Item "${item.title}" must have a valid quantity.` };
+      }
     }
+
+    const items = body.items.map((item) => ({
+      title: String(item.title),
+      quantity: Number(item.quantity),
+      unit_price: Number(item.unit_price),
+      currency_id: 'COP',
+    }));
+
+    const productTitle = items.map((i) => i.title).join(', ');
+    const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+    const total = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+
+    return { items, productTitle, totalQuantity, total };
   }
-  if (typeof body.price !== 'number' || body.price <= 0) {
-    return 'price must be a positive number.';
+
+  // Single product
+  const { title, price, quantity } = body;
+  if (!title || typeof title !== 'string') {
+    return { error: 'Missing required field: title' };
   }
-  if (typeof body.quantity !== 'number' || body.quantity <= 0) {
-    return 'quantity must be a positive number.';
+  if (typeof price !== 'number' || price <= 0) {
+    return { error: 'price must be a positive number.' };
   }
-  const s = body.shipping;
+  if (typeof quantity !== 'number' || quantity <= 0) {
+    return { error: 'quantity must be a positive number.' };
+  }
+
+  return {
+    items: [{ title: String(title), quantity: Number(quantity), unit_price: Number(price), currency_id: 'COP' }],
+    productTitle: String(title),
+    totalQuantity: Number(quantity),
+    total: price * quantity,
+  };
+}
+
+function validateShipping(s) {
   if (!s || typeof s !== 'object') return 'Missing required field: shipping';
   for (const field of REQUIRED_SHIPPING) {
     if (!s[field]) return `Missing required shipping field: ${field}`;
   }
   return null;
-}
-
-function generateOrderNumber() {
-  return `YS-${Date.now()}`;
 }
 
 export default async function handler(req, res) {
@@ -58,15 +95,14 @@ export default async function handler(req, res) {
   }
 
   const body = req.body;
-  const validationError = validate(body);
-  if (validationError) return res.status(400).json({ error: validationError });
 
-  const {
-    title, price, quantity, shipping,
-    coupon_code, discount_amount, payment_method, internal_notes, shipping_cost,
-  } = body;
+  const { items, productTitle, totalQuantity, total, error: itemsError } = resolveItems(body);
+  if (itemsError) return res.status(400).json({ error: itemsError });
 
-  const total = price * quantity;
+  const shippingError = validateShipping(body.shipping);
+  if (shippingError) return res.status(400).json({ error: shippingError });
+
+  const { shipping, coupon_code, discount_amount, payment_method, internal_notes, shipping_cost } = body;
   const orderNumber = generateOrderNumber();
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -75,8 +111,8 @@ export default async function handler(req, res) {
     .from('orders')
     .insert({
       order_number: orderNumber,
-      product_title: title,
-      quantity,
+      product_title: productTitle,
+      quantity: totalQuantity,
       total,
       shipping_cost: shipping_cost ?? 0,
       customer_name: shipping.fullName,
@@ -105,14 +141,7 @@ export default async function handler(req, res) {
   const orderId = order.id;
 
   const preference = {
-    items: [
-      {
-        title: String(title),
-        quantity: Number(quantity),
-        unit_price: Number(price),
-        currency_id: 'COP',
-      },
-    ],
+    items,
     payer: { email: shipping.email },
     metadata: {
       order_id: orderId,
@@ -157,5 +186,6 @@ export default async function handler(req, res) {
     init_point: mpData.init_point,
     sandbox_init_point: mpData.sandbox_init_point,
     order_id: orderId,
+    order_number: orderNumber,
   });
 }
