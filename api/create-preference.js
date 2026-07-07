@@ -27,25 +27,22 @@ function validate(body) {
       return `Missing required field: ${field}`;
     }
   }
-
   if (typeof body.price !== 'number' || body.price <= 0) {
     return 'price must be a positive number.';
   }
   if (typeof body.quantity !== 'number' || body.quantity <= 0) {
     return 'quantity must be a positive number.';
   }
-
   const s = body.shipping;
-  if (!s || typeof s !== 'object') {
-    return 'Missing required field: shipping';
-  }
+  if (!s || typeof s !== 'object') return 'Missing required field: shipping';
   for (const field of REQUIRED_SHIPPING) {
-    if (!s[field]) {
-      return `Missing required shipping field: ${field}`;
-    }
+    if (!s[field]) return `Missing required shipping field: ${field}`;
   }
-
   return null;
+}
+
+function generateOrderNumber() {
+  return `YS-${Date.now()}`;
 }
 
 export default async function handler(req, res) {
@@ -55,18 +52,20 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
   const { MP_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
-
   if (!MP_ACCESS_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(500).json({ error: 'Server environment variables are not configured.' });
   }
 
   const body = req.body;
   const validationError = validate(body);
-  if (validationError) {
-    return res.status(400).json({ error: validationError });
-  }
+  if (validationError) return res.status(400).json({ error: validationError });
 
-  const { title, price, quantity, shipping } = body;
+  const {
+    title, price, quantity, shipping,
+    coupon_code, discount_amount, payment_method, internal_notes,
+    shipping_cost,
+  } = body;
+
   const total = price * quantity;
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -74,9 +73,11 @@ export default async function handler(req, res) {
   const { data: order, error: dbError } = await supabase
     .from('orders')
     .insert({
+      order_number: generateOrderNumber(),
       product_title: title,
       quantity,
       total,
+      shipping_cost: shipping_cost ?? 0,
       customer_name: shipping.fullName,
       customer_email: shipping.email,
       customer_phone: shipping.phone,
@@ -87,6 +88,11 @@ export default async function handler(req, res) {
       extra_address: shipping.extraAddress || null,
       notes: shipping.notes || null,
       payment_status: 'pending',
+      shipping_status: 'pending',
+      coupon_code: coupon_code || null,
+      discount_amount: discount_amount ?? 0,
+      payment_method: payment_method || null,
+      internal_notes: internal_notes || null,
     })
     .select('id')
     .single();
@@ -106,9 +112,7 @@ export default async function handler(req, res) {
         currency_id: 'COP',
       },
     ],
-    payer: {
-      email: shipping.email,
-    },
+    payer: { email: shipping.email },
     metadata: {
       order_id: orderId,
       customer_name: shipping.fullName,
