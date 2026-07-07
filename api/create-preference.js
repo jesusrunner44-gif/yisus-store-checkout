@@ -25,8 +25,10 @@ function generateOrderNumber() {
   return `YS-${Date.now()}`;
 }
 
-// Normalizes body into a validated items array and order summary fields.
-// Returns { items, productTitle, totalQuantity, total, error }
+// Returns { mpItems, productTitle, productSummary, totalQuantity, total, error }
+// mpItems  → sent to Mercado Pago
+// productTitle → saved in Supabase product_title
+// productSummary → added to MP metadata.products
 function resolveItems(body) {
   if (Array.isArray(body.items) && body.items.length > 0) {
     for (const item of body.items) {
@@ -41,18 +43,20 @@ function resolveItems(body) {
       }
     }
 
-    const items = body.items.map((item) => ({
-      title: String(item.title),
-      quantity: Number(item.quantity),
-      unit_price: Number(item.unit_price),
-      currency_id: 'COP',
-    }));
+    const totalQuantity = body.items.reduce((sum, i) => sum + Number(i.quantity), 0);
+    const total = body.items.reduce((sum, i) => sum + Number(i.unit_price) * Number(i.quantity), 0);
+    const productSummary = body.items.map((i) => `${i.title} x${i.quantity}`).join(' + ');
 
-    const productTitle = items.map((i) => `${i.title} x${i.quantity}`).join(' + ');
-    const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
-    const total = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+    const mpItems = [
+      {
+        title: `Carrito Yisus Store - ${totalQuantity} productos`,
+        quantity: 1,
+        unit_price: total,
+        currency_id: 'COP',
+      },
+    ];
 
-    return { items, productTitle, totalQuantity, total };
+    return { mpItems, productTitle: productSummary, productSummary, totalQuantity, total };
   }
 
   // Single product
@@ -67,9 +71,11 @@ function resolveItems(body) {
     return { error: 'quantity must be a positive number.' };
   }
 
+  const mpItems = [{ title: String(title), quantity: Number(quantity), unit_price: Number(price), currency_id: 'COP' }];
   return {
-    items: [{ title: String(title), quantity: Number(quantity), unit_price: Number(price), currency_id: 'COP' }],
+    mpItems,
     productTitle: String(title),
+    productSummary: `${title} x${quantity}`,
     totalQuantity: Number(quantity),
     total: price * quantity,
   };
@@ -96,7 +102,7 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
-  const { items, productTitle, totalQuantity, total, error: itemsError } = resolveItems(body);
+  const { mpItems, productTitle, productSummary, totalQuantity, total, error: itemsError } = resolveItems(body);
   if (itemsError) return res.status(400).json({ error: itemsError });
 
   const shippingError = validateShipping(body.shipping);
@@ -141,13 +147,14 @@ export default async function handler(req, res) {
   const orderId = order.id;
 
   const preference = {
-    items,
+    items: mpItems,
     payer: { email: shipping.email },
     metadata: {
       order_id: orderId,
       order_number: orderNumber,
       customer_email: shipping.email,
       customer_phone: shipping.phone,
+      products: productSummary,
     },
     back_urls: {
       success: 'https://yisusstore.com/gracias',
