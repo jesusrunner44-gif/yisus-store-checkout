@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sendShippedEmail, sendDeliveredEmail } from '../lib/email.js';
 
 const ALLOWED_ORIGINS = [
   'https://yisusstore.com',
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
-  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(500).json({ error: 'Server environment variables are not configured.' });
   }
@@ -57,14 +58,44 @@ export default async function handler(req, res) {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  const { error: dbError } = await supabase
+  const { data: updated, error: dbError } = await supabase
     .from('orders')
     .update(updates)
-    .eq('id', order_id);
+    .eq('id', order_id)
+    .select('id, order_number, customer_name, customer_email, product_title, address, city, department, shipping_company, tracking_number, shipping_status, shipped_email_sent_at, delivered_email_sent_at')
+    .single();
 
   if (dbError) {
     return res.status(500).json({ error: 'Failed to update order.', details: dbError.message });
   }
 
-  return res.status(200).json({ updated: true, order_id });
+  let emailSent = null;
+
+  if (shipping_status === 'shipped' && RESEND_API_KEY && !updated.shipped_email_sent_at) {
+    try {
+      await sendShippedEmail({ order: updated, resendApiKey: RESEND_API_KEY });
+      await supabase
+        .from('orders')
+        .update({ shipped_email_sent_at: new Date().toISOString() })
+        .eq('id', order_id);
+      emailSent = 'shipped';
+    } catch (err) {
+      return res.status(200).json({ updated: true, order_id, email_error: err.message });
+    }
+  }
+
+  if (shipping_status === 'delivered' && RESEND_API_KEY && !updated.delivered_email_sent_at) {
+    try {
+      await sendDeliveredEmail({ order: updated, resendApiKey: RESEND_API_KEY });
+      await supabase
+        .from('orders')
+        .update({ delivered_email_sent_at: new Date().toISOString() })
+        .eq('id', order_id);
+      emailSent = 'delivered';
+    } catch (err) {
+      return res.status(200).json({ updated: true, order_id, email_error: err.message });
+    }
+  }
+
+  return res.status(200).json({ updated: true, order_id, email_sent: emailSent });
 }
