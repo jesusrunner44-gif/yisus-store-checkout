@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Yisus Store — Admin</title>
+  <style>
+    :root {
+      --brand: #ef3328;
+      --brand-dark: #b3241d;
+      --ink: #111;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --bg: #f7f7f7;
+      --card: #fff;
+      --ok: #059669;
+      --warn: #d97706;
+      --err: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    header { background: #111; color: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+    header .brand { font-weight: 900; font-size: 18px; letter-spacing: .3px; }
+    header .brand span { color: var(--brand); }
+    header .actions { display: flex; gap: 8px; align-items: center; }
+    header button { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.25); padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+    header button:hover { border-color: rgba(255,255,255,.5); }
+    main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .toolbar input[type="search"] { flex: 1; min-width: 220px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 15px; background: #fff; }
+    .toolbar select { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 15px; background: #fff; }
+    .toolbar button { padding: 10px 18px; border-radius: 10px; border: 0; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .toolbar button:hover { background: #000; }
+    .count { color: var(--muted); font-size: 13px; padding: 4px 0; }
+    .empty, .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+    .row1 { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .num { font-size: 15px; font-weight: 800; color: var(--ink); }
+    .num small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+    .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+    .badge.pending { background: #fef3c7; color: var(--warn); }
+    .badge.approved { background: #d1fae5; color: var(--ok); }
+    .badge.rejected, .badge.cancelled { background: #fee2e2; color: var(--err); }
+    .badge.preparing { background: #dbeafe; color: #1d4ed8; }
+    .badge.shipped { background: #ede9fe; color: #6d28d9; }
+    .badge.delivered { background: #d1fae5; color: var(--ok); }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; margin-top: 12px; font-size: 14px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .grid .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+    .grid .v { color: var(--ink); }
+    .products { margin-top: 10px; padding: 10px 12px; background: #fafafa; border-radius: 8px; font-size: 14px; }
+    .actions-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn:hover { background: #f3f4f6; }
+    .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .btn.primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+    .btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .btn.ok:hover { filter: brightness(.9); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .tracking-line { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .tracking-line strong { color: var(--ink); }
+
+    /* login */
+    .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: var(--bg); }
+    .login { background: #fff; padding: 32px; border-radius: 16px; border: 1px solid var(--line); max-width: 380px; width: 100%; text-align: center; }
+    .login h1 { margin: 0 0 8px; font-size: 22px; }
+    .login h1 span { color: var(--brand); }
+    .login p { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+    .login input { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 15px; margin-bottom: 12px; }
+    .login button { width: 100%; padding: 12px 14px; border: 0; background: var(--brand); color: #fff; font-weight: 800; font-size: 15px; border-radius: 10px; cursor: pointer; }
+    .login button:hover { background: var(--brand-dark); }
+    .login .err { color: var(--err); font-size: 13px; margin: 0 0 12px; min-height: 18px; }
+
+    /* modal */
+    .modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid; place-items: center; padding: 20px; z-index: 50; }
+    .modal { background: #fff; border-radius: 16px; padding: 24px; max-width: 440px; width: 100%; }
+    .modal h2 { margin: 0 0 16px; font-size: 18px; }
+    .modal label { display: block; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; margin-top: 12px; text-transform: uppercase; letter-spacing: .3px; }
+    .modal input, .modal select, .modal textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 15px; font-family: inherit; }
+    .modal .foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 100; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: var(--err); }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login-view" class="login-wrap">
+    <form id="login-form" class="login" onsubmit="return false;">
+      <h1>Yisus <span>Store</span> · Admin</h1>
+      <p>Ingresa tu contraseña para gestionar pedidos.</p>
+      <p id="login-err" class="err"></p>
+      <input type="password" id="login-input" placeholder="Contraseña" autocomplete="current-password" autofocus />
+      <button id="login-btn" type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <!-- PANEL -->
+  <div id="panel-view" style="display:none;">
+    <header>
+      <div class="brand">Yisus <span>Store</span> · Admin</div>
+      <div class="actions">
+        <button id="refresh-btn">Refrescar</button>
+        <button id="logout-btn">Salir</button>
+      </div>
+    </header>
+    <main>
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="Buscar por # pedido, nombre o email…" />
+        <select id="filter">
+          <option value="">Todos los estados</option>
+          <option value="approved">Pago aprobado</option>
+          <option value="pending">Pago pendiente</option>
+          <option value="rejected">Pago rechazado</option>
+        </select>
+        <select id="shipping-filter">
+          <option value="">Todos los envíos</option>
+          <option value="pending">Envío pendiente</option>
+          <option value="preparing">Preparando</option>
+          <option value="shipped">Enviado</option>
+          <option value="delivered">Entregado</option>
+        </select>
+      </div>
+      <div class="count" id="count"></div>
+      <div id="orders"></div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+  const API = 'https://yisus-store-checkout.vercel.app';
+  const $ = (id) => document.getElementById(id);
+
+  function getPass() { return localStorage.getItem('yisus-admin-pass'); }
+  function setPass(p) { localStorage.setItem('yisus-admin-pass', p); }
+  function clearPass() { localStorage.removeItem('yisus-admin-pass'); }
+
+  function toast(msg, isError=false) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', isError);
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  async function api(path, opts = {}) {
+    const pass = getPass();
+    const res = await fetch(API + path, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-password': pass || '',
+        ...(opts.headers || {}),
+      },
+    });
+    if (res.status === 401) {
+      clearPass();
+      showLogin();
+      throw new Error('Sesión expirada.');
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  function showLogin() {
+    $('login-view').style.display = '';
+    $('panel-view').style.display = 'none';
+    $('login-input').focus();
+  }
+
+  function showPanel() {
+    $('login-view').style.display = 'none';
+    $('panel-view').style.display = '';
+    loadOrders();
+  }
+
+  function formatCOP(n) {
+    if (n == null) return '—';
+    return 'COP ' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+  }
+
+  function badge(status) {
+    const cls = (status || '').toLowerCase();
+    return `<span class="badge ${cls}">${status || '—'}</span>`;
+  }
+
+  function orderCard(o) {
+    const canShip = o.payment_status === 'approved' && o.shipping_status !== 'shipped' && o.shipping_status !== 'delivered';
+    const canDeliver = o.shipping_status === 'shipped';
+    const tracking = o.shipping_company || o.tracking_number
+      ? `<div class="tracking-line">📦 <strong>${o.shipping_company || 'Transportadora'}</strong> · Guía: <strong>${o.tracking_number || '—'}</strong></div>`
+      : '';
+    return `
+      <div class="card" data-order-id="${o.id}">
+        <div class="row1">
+          <div class="num">#${o.order_number} <small>${formatDate(o.created_at)}</small></div>
+          <div class="badges">${badge(o.payment_status)}${badge(o.shipping_status)}</div>
+        </div>
+        <div class="grid">
+          <div><div class="k">Cliente</div><div class="v">${o.customer_name || '—'}</div></div>
+          <div><div class="k">Total</div><div class="v"><strong>${formatCOP(o.paid_amount ?? o.total)}</strong></div></div>
+          <div><div class="k">Email</div><div class="v">${o.customer_email || '—'}</div></div>
+          <div><div class="k">WhatsApp</div><div class="v">${o.customer_phone || '—'}</div></div>
+          <div><div class="k">Dirección</div><div class="v">${o.address || '—'}${o.extra_address ? ' — ' + o.extra_address : ''}<br>${o.neighborhood || ''} · ${o.city || ''}, ${o.department || ''}</div></div>
+          <div><div class="k">Notas del cliente</div><div class="v">${o.notes || '—'}</div></div>
+        </div>
+        <div class="products"><strong>Productos:</strong> ${o.product_title}</div>
+        ${tracking}
+        <div class="actions-row">
+          ${canShip ? `<button class="btn primary" onclick="openShipModal('${o.id}', '${o.order_number}')">📦 Marcar enviado</button>` : ''}
+          ${canDeliver ? `<button class="btn ok" onclick="markDelivered('${o.id}', '${o.order_number}')">🎉 Marcar entregado</button>` : ''}
+          <a class="btn" href="https://wa.me/57${(o.customer_phone || '').replace(/[^0-9]/g, '')}" target="_blank" rel="noopener">💬 WhatsApp</a>
+        </div>
+      </div>
+    `;
+  }
+
+  let allOrders = [];
+
+  async function loadOrders() {
+    $('orders').innerHTML = '<div class="loading">Cargando pedidos…</div>';
+    try {
+      const { orders } = await api('/api/admin/orders?limit=200');
+      allOrders = orders;
+      renderOrders();
+    } catch (err) {
+      $('orders').innerHTML = `<div class="empty">Error: ${err.message}</div>`;
+    }
+  }
+
+  function renderOrders() {
+    const search = $('search').value.trim().toLowerCase();
+    const paymentFilter = $('filter').value;
+    const shippingFilter = $('shipping-filter').value;
+
+    let filtered = allOrders;
+    if (search) {
+      filtered = filtered.filter(o =>
+        (o.order_number || '').toLowerCase().includes(search) ||
+        (o.customer_name || '').toLowerCase().includes(search) ||
+        (o.customer_email || '').toLowerCase().includes(search)
+      );
+    }
+    if (paymentFilter) filtered = filtered.filter(o => o.payment_status === paymentFilter);
+    if (shippingFilter) filtered = filtered.filter(o => o.shipping_status === shippingFilter);
+
+    $('count').textContent = `${filtered.length} pedido${filtered.length === 1 ? '' : 's'}${allOrders.length !== filtered.length ? ` de ${allOrders.length}` : ''}`;
+
+    if (filtered.length === 0) {
+      $('orders').innerHTML = '<div class="empty">No hay pedidos que coincidan.</div>';
+    } else {
+      $('orders').innerHTML = filtered.map(orderCard).join('');
+    }
+  }
+
+  window.openShipModal = function(orderId, orderNumber) {
+    const modal = document.createElement('div');
+    modal.className = 'modal-back';
+    modal.innerHTML = `
+      <div class="modal">
+        <h2>Marcar #${orderNumber} como enviado</h2>
+        <label>Transportadora</label>
+        <select id="ship-company">
+          <option value="Coordinadora">Coordinadora</option>
+          <option value="Servientrega">Servientrega</option>
+          <option value="Interrapidísimo">Interrapidísimo</option>
+          <option value="TCC">TCC</option>
+          <option value="Envía">Envía</option>
+          <option value="Deprisa">Deprisa</option>
+          <option value="Otra">Otra</option>
+        </select>
+        <label>Número de guía</label>
+        <input id="ship-tracking" placeholder="Ej: COO-123456789" autofocus />
+        <label>URL de rastreo (opcional)</label>
+        <input id="ship-url" placeholder="https://…" />
+        <div class="foot">
+          <button class="btn" onclick="this.closest('.modal-back').remove()">Cancelar</button>
+          <button class="btn primary" id="ship-confirm">Enviar email al cliente</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#ship-confirm').onclick = async () => {
+      const company = modal.querySelector('#ship-company').value;
+      const tracking = modal.querySelector('#ship-tracking').value.trim();
+      const url = modal.querySelector('#ship-url').value.trim();
+      const btn = modal.querySelector('#ship-confirm');
+      btn.disabled = true; btn.textContent = 'Enviando…';
+      try {
+        const result = await api('/api/admin/mark-shipped', {
+          method: 'POST',
+          body: JSON.stringify({ order_id: orderId, shipping_company: company, tracking_number: tracking, tracking_url: url }),
+        });
+        toast(result.email_sent ? 'Enviado. Email al cliente OK.' : 'Enviado (email ya se había enviado antes).');
+        modal.remove();
+        loadOrders();
+      } catch (err) {
+        toast('Error: ' + err.message, true);
+        btn.disabled = false; btn.textContent = 'Enviar email al cliente';
+      }
+    };
+  };
+
+  window.markDelivered = async function(orderId, orderNumber) {
+    if (!confirm(`¿Marcar #${orderNumber} como entregado y enviar email al cliente?`)) return;
+    try {
+      const result = await api('/api/admin/mark-delivered', {
+        method: 'POST',
+        body: JSON.stringify({ order_id: orderId }),
+      });
+      toast(result.email_sent ? 'Entregado. Email al cliente OK.' : 'Entregado (email ya se había enviado antes).');
+      loadOrders();
+    } catch (err) {
+      toast('Error: ' + err.message, true);
+    }
+  };
+
+  // events
+  $('login-form').addEventListener('submit', async () => {
+    const pass = $('login-input').value;
+    if (!pass) return;
+    $('login-btn').disabled = true;
+    setPass(pass);
+    try {
+      await api('/api/admin/login', { method: 'POST' });
+      $('login-err').textContent = '';
+      showPanel();
+    } catch (err) {
+      clearPass();
+      $('login-err').textContent = err.message.includes('Unauthorized') ? 'Contraseña incorrecta.' : err.message;
+    } finally {
+      $('login-btn').disabled = false;
+    }
+  });
+
+  $('logout-btn').addEventListener('click', () => { clearPass(); showLogin(); });
+  $('refresh-btn').addEventListener('click', loadOrders);
+  $('search').addEventListener('input', renderOrders);
+  $('filter').addEventListener('change', renderOrders);
+  $('shipping-filter').addEventListener('change', renderOrders);
+
+  // boot
+  if (getPass()) {
+    api('/api/admin/login', { method: 'POST' })
+      .then(showPanel)
+      .catch(() => { clearPass(); showLogin(); });
+  } else {
+    showLogin();
+  }
+  </script>
+</body>
+</html>
