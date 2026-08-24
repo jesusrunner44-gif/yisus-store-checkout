@@ -149,6 +149,7 @@ export default async function handler(req, res) {
   const preference = {
     items: mpItems,
     payer: { email: shipping.email },
+    external_reference: orderNumber,
     metadata: {
       order_id: orderId,
       order_number: orderNumber,
@@ -157,9 +158,9 @@ export default async function handler(req, res) {
       products: productSummary,
     },
     back_urls: {
-      success: 'https://yisusstore.com/gracias',
-      failure: 'https://yisusstore.com/pago-fallido',
-      pending: 'https://yisusstore.com/pago-pendiente',
+      success: 'https://yisusstore.com/gracias-pago-aprobado',
+      failure: 'https://yisusstore.com/pago-fallido-pago-rechazado',
+      pending: 'https://yisusstore.com/pago-pendiente-pago-en-proceso',
     },
     auto_return: 'approved',
     notification_url: WEBHOOK_URL,
