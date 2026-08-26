@@ -1,7 +1,8 @@
-// TEMPORARY — admin endpoint to simulate a Mercado Pago webhook.
-// Marks an order as 'approved' with fake payment data and sends confirmation emails.
+// TEMPORARY — admin endpoint to simulate an approved payment without
+// going through the payment gateway. Marks an order as 'approved' with
+// simulated Wompi data and sends confirmation emails.
 // Auth: requires the SUPABASE_SERVICE_ROLE_KEY as x-service-key header.
-// Remove this file once the checkout has been tested with a real payment.
+// Remove this file once the checkout has been fully tested in production.
 
 import { createClient } from '@supabase/supabase-js';
 import { sendOrderEmails } from '../../lib/email.js';
@@ -33,28 +34,34 @@ export default async function handler(req, res) {
   if (fetchErr) return res.status(500).json({ error: 'Lookup failed.', details: fetchErr.message });
   if (!order) return res.status(404).json({ error: 'Order not found.' });
 
+  const provider = order.payment_provider || 'wompi';
+  const simulatedTxnId = `SIMULATED-${Date.now()}`;
+  const nowIso = new Date().toISOString();
+
   const simulatedPayment = {
-    id: `SIMULATED-${Date.now()}`,
+    id: simulatedTxnId,
     status: 'approved',
-    transaction_amount: order.total,
-    currency_id: 'COP',
-    installments: 1,
-    payment_type_id: 'credit_card',
-    payment_method_id: 'master',
+    payment_type_id: 'CARD',
+    payment_method_id: 'CARD',
     payer: { email: order.customer_email },
-    date_approved: new Date().toISOString(),
   };
 
   const updates = {
-    payment_status: simulatedPayment.status,
-    mercado_pago_payment_id: simulatedPayment.id,
-    payment_method: simulatedPayment.payment_type_id,
-    paid_amount: simulatedPayment.transaction_amount,
-    currency: simulatedPayment.currency_id,
-    installments: simulatedPayment.installments,
-    payer_email: simulatedPayment.payer.email,
-    approved_at: simulatedPayment.date_approved,
+    payment_status: 'approved',
+    payment_method: 'CARD',
+    paid_amount: order.total,
+    currency: order.currency || 'COP',
+    payer_email: order.customer_email,
+    approved_at: nowIso,
   };
+
+  if (provider === 'wompi') {
+    updates.payment_provider = 'wompi';
+    updates.wompi_transaction_id = simulatedTxnId;
+    updates.wompi_reference = orderNumber;
+  } else {
+    updates.mercado_pago_payment_id = simulatedTxnId;
+  }
 
   const { error: updErr } = await supabase.from('orders').update(updates).eq('id', order.id);
   if (updErr) return res.status(500).json({ error: 'Update failed.', details: updErr.message });
@@ -63,10 +70,15 @@ export default async function handler(req, res) {
   if (RESEND_API_KEY && !order.email_sent_at) {
     try {
       const merged = { ...order, ...updates };
-      await sendOrderEmails({ order: merged, payment: simulatedPayment, resendApiKey: RESEND_API_KEY });
+      await sendOrderEmails({
+        order: merged,
+        payment: simulatedPayment,
+        provider,
+        resendApiKey: RESEND_API_KEY,
+      });
       await supabase
         .from('orders')
-        .update({ email_sent_at: new Date().toISOString() })
+        .update({ email_sent_at: nowIso })
         .eq('id', order.id);
       emailResult = 'sent';
     } catch (err) {
@@ -78,6 +90,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     simulated: true,
+    provider,
     order_number: orderNumber,
     payment_status: updates.payment_status,
     email: emailResult,
