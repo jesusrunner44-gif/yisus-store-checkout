@@ -1,0 +1,48 @@
+<!-- Pegar este bloque en un Embed de la página /pago-pendiente-pago-en-proceso -->
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var txnId = params.get('id');
+  if (!txnId) return;
+
+  var MAX_ATTEMPTS = 50;   // 50 × 6s = 5 min
+  var INTERVAL_MS = 6000;
+  var attempts = 0;
+
+  function paint(ref) {
+    var els = document.querySelectorAll('[data-order-number]');
+    els.forEach(function (el) { el.textContent = '#' + ref; });
+  }
+
+  function poll() {
+    fetch('https://api.wompi.co/v1/transactions/' + encodeURIComponent(txnId))
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (json) {
+        var txn = json && json.data;
+        if (!txn) return schedule();
+
+        if (txn.reference) paint(txn.reference);
+
+        if (txn.status === 'APPROVED') {
+          window.location.href = '/gracias-pago-aprobado?id=' + encodeURIComponent(txnId);
+          return;
+        }
+        if (txn.status === 'DECLINED' || txn.status === 'ERROR' || txn.status === 'VOIDED') {
+          window.location.href = '/pago-fallido-pago-rechazado?id=' + encodeURIComponent(txnId);
+          return;
+        }
+
+        schedule();
+      })
+      .catch(schedule);
+  }
+
+  function schedule() {
+    attempts += 1;
+    if (attempts >= MAX_ATTEMPTS) return;
+    setTimeout(poll, INTERVAL_MS);
+  }
+
+  poll();
+})();
+</script>

@@ -1,8 +1,9 @@
 {
   "name": "yisus-store-checkout",
   "version": "1.0.0",
-  "description": "Mercado Pago Checkout Pro serverless API for Yisus Store",
-  "main": "api/create-preference.js",
+  "description": "Wompi Checkout serverless API for Yisus Store",
+  "main": "api/create-transaction.js",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev"
   },

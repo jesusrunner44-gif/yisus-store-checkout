@@ -1,0 +1,33 @@
+<!--
+  Ejemplo de integración del botón de checkout con el backend Wompi.
+  Adaptar los selectores + lectura de carrito al HTML real del Webflow.
+  Lo importante es:
+    - Cambiar endpoint: /api/create-preference  →  /api/create-transaction
+    - Cambiar redirect: init_point (MP)         →  checkout_url (Wompi)
+-->
+<script>
+async function payWithWompi(cart, shipping) {
+  // cart = [{ title, unit_price, quantity }, ...]
+  // shipping = { fullName, email, phone, department, city, address, neighborhood, extraAddress?, notes? }
+
+  const res = await fetch('https://yisus-store-checkout.vercel.app/api/create-transaction', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: cart,
+      shipping: shipping,
+      shipping_cost: 0,      // ajustar si aplica
+      discount_amount: 0,    // ajustar si aplica
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(function () { return {}; });
+    alert(err.error || 'No se pudo iniciar el pago.');
+    return;
+  }
+
+  const data = await res.json();
+  window.location.href = data.checkout_url;
+}
+</script>

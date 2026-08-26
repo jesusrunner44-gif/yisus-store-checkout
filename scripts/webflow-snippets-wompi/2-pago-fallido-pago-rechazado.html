@@ -1,0 +1,25 @@
+<!-- Pegar este bloque en un Embed de la página /pago-fallido-pago-rechazado -->
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var txnId = params.get('id');
+  if (!txnId) return;
+
+  fetch('https://api.wompi.co/v1/transactions/' + encodeURIComponent(txnId))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (json) {
+      var txn = json && json.data;
+      if (!txn) return;
+
+      var ref = txn.reference || '';
+      var els = document.querySelectorAll('[data-order-number]');
+      els.forEach(function (el) { el.textContent = '#' + ref; });
+
+      // If Wompi actually says APPROVED, don't keep the user on the failure page.
+      if (txn.status === 'APPROVED') {
+        window.location.href = '/gracias-pago-aprobado?id=' + encodeURIComponent(txnId);
+      }
+    })
+    .catch(function () {});
+})();
+</script>

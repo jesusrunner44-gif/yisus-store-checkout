@@ -1,0 +1,27 @@
+<!-- Pegar este bloque en un Embed de la página /gracias-pago-aprobado -->
+<script>
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var txnId = params.get('id');
+  if (!txnId) return;
+
+  fetch('https://api.wompi.co/v1/transactions/' + encodeURIComponent(txnId))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (json) {
+      var txn = json && json.data;
+      if (!txn) return;
+
+      var ref = txn.reference || '';
+      var els = document.querySelectorAll('[data-order-number]');
+      els.forEach(function (el) { el.textContent = '#' + ref; });
+
+      // Redirect only on explicit failure. If Wompi still says PENDING (webhook not arrived),
+      // stay on this page — customer already saw success in Wompi.
+      var status = txn.status;
+      if (status === 'DECLINED' || status === 'ERROR' || status === 'VOIDED') {
+        window.location.href = '/pago-fallido-pago-rechazado?id=' + encodeURIComponent(txnId);
+      }
+    })
+    .catch(function () {});
+})();
+</script>
