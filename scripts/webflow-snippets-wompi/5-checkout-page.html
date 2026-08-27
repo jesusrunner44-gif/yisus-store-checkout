@@ -1,0 +1,492 @@
+<!--
+  YISUS STORE — Full-page checkout, Shopify-style.
+  Pegar TODO este bloque en un Embed dentro de una página vacía /checkout en Webflow.
+  No requiere que la página tenga nav ni footer (el embed trae su propio header minimal).
+-->
+<style>
+  :root{
+    --ys-red:#ef3328;
+    --ys-red-hover:#c92419;
+    --ys-ink:#111;
+    --ys-muted:#666;
+    --ys-line:#e8e8e8;
+    --ys-line-strong:#cfcfcf;
+    --ys-side-bg:#0e0e0e;
+    --ys-side-line:#242424;
+    --ys-side-muted:#a3a3a3;
+    --ys-radius:12px;
+    --ys-radius-lg:16px;
+    --ys-success:#22c55e;
+  }
+  html,body{margin:0;padding:0;background:#fff}
+  body.yisus-checkout{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    color:var(--ys-ink);
+    background:#fff;
+  }
+  body.yisus-checkout .w-nav,
+  body.yisus-checkout .navbar,
+  body.yisus-checkout footer,
+  body.yisus-checkout .whatsapp-float{display:none!important}
+
+  .ys-co-wrap{
+    display:grid;
+    grid-template-columns:1fr 460px;
+    min-height:100vh;
+    max-width:1400px;
+    margin:0 auto;
+  }
+  .ys-co-left{
+    padding:40px 56px 80px;
+    max-width:640px;
+    justify-self:end;
+    width:100%;
+    background:#fff;
+  }
+  .ys-co-right{
+    background:var(--ys-side-bg);
+    color:#fff;
+    padding:40px 40px;
+    border-left:1px solid var(--ys-side-line);
+  }
+
+  .ys-co-header{margin-bottom:32px;display:flex;align-items:baseline;gap:16px}
+  .ys-co-brand{
+    font-weight:900;font-size:22px;letter-spacing:-0.02em;
+    color:var(--ys-red);text-decoration:none;
+  }
+  .ys-co-back{font-size:13px;color:var(--ys-muted);text-decoration:none}
+  .ys-co-back:hover{color:var(--ys-ink)}
+
+  .ys-co-section-title{
+    font-size:16px;font-weight:800;margin:28px 0 14px;
+    letter-spacing:-0.01em;text-transform:uppercase;
+  }
+  .ys-co-section-title:first-child{margin-top:0}
+
+  .ys-co-field{margin-bottom:10px;position:relative}
+  .ys-co-input{
+    width:100%;padding:20px 14px 8px;border:1px solid var(--ys-line-strong);
+    border-radius:var(--ys-radius);font-size:15px;background:#fff;
+    color:var(--ys-ink);outline:none;transition:border-color .15s, box-shadow .15s;
+    box-sizing:border-box;font-family:inherit;
+  }
+  .ys-co-input:focus{border-color:var(--ys-ink);box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+  .ys-co-label{
+    position:absolute;top:14px;left:15px;font-size:15px;color:#999;
+    pointer-events:none;transition:all .15s;background:transparent;
+  }
+  .ys-co-input:focus + .ys-co-label,
+  .ys-co-input:not(:placeholder-shown) + .ys-co-label{
+    top:6px;font-size:11px;color:var(--ys-muted);font-weight:600;
+  }
+
+  .ys-co-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  .ys-co-textarea{
+    width:100%;padding:14px;border:1px solid var(--ys-line-strong);
+    border-radius:var(--ys-radius);font-size:15px;background:#fff;
+    color:var(--ys-ink);outline:none;resize:vertical;min-height:80px;
+    font-family:inherit;box-sizing:border-box;
+  }
+  .ys-co-textarea:focus{border-color:var(--ys-ink)}
+
+  .ys-co-ship-option{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:16px;border:1px solid var(--ys-ink);border-radius:var(--ys-radius);
+    background:#fafafa;font-size:14px;font-weight:600;
+  }
+  .ys-co-ship-option .free{color:var(--ys-success);font-weight:800}
+
+  .ys-co-cta{
+    width:100%;padding:18px 24px;background:var(--ys-red);color:#fff;
+    border:none;border-radius:var(--ys-radius);font-size:17px;font-weight:800;
+    cursor:pointer;margin-top:24px;transition:background .15s, transform .1s;
+    letter-spacing:0.01em;font-family:inherit;
+  }
+  .ys-co-cta:hover:not(:disabled){background:var(--ys-red-hover)}
+  .ys-co-cta:active:not(:disabled){transform:translateY(1px)}
+  .ys-co-cta:disabled{opacity:.7;cursor:wait}
+
+  .ys-co-secure{
+    text-align:center;font-size:12px;color:var(--ys-muted);
+    margin-top:14px;display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+
+  .ys-co-error{
+    background:#fff1ef;color:var(--ys-red);border:1px solid #fed7d3;
+    padding:12px 14px;border-radius:var(--ys-radius);font-size:14px;
+    margin-top:14px;display:none;
+  }
+
+  /* Right side — dark summary */
+  .ys-co-summary-header{
+    font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.03em;
+    color:var(--ys-side-muted);margin-bottom:20px;
+  }
+  .ys-co-summary-item{display:flex;gap:14px;margin-bottom:18px;align-items:center}
+  .ys-co-thumb{
+    width:60px;height:60px;border-radius:10px;background:#1a1a1a;
+    border:1px solid var(--ys-side-line);position:relative;flex-shrink:0;
+    background-size:cover;background-position:center;overflow:visible;
+  }
+  .ys-co-thumb-badge{
+    position:absolute;top:-8px;right:-8px;background:var(--ys-red);color:#fff;
+    border-radius:999px;min-width:22px;height:22px;font-size:11px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;padding:0 6px;
+    border:2px solid var(--ys-side-bg);
+  }
+  .ys-co-thumb-fallback{
+    display:flex;align-items:center;justify-content:center;font-weight:900;
+    font-size:22px;color:var(--ys-red);
+  }
+  .ys-co-item-meta{flex:1;min-width:0}
+  .ys-co-item-title{font-size:14px;font-weight:600;margin:0;line-height:1.35;color:#fff}
+  .ys-co-item-price{font-size:14px;font-weight:800;white-space:nowrap;margin-left:8px;color:#fff}
+
+  .ys-co-divider{height:1px;background:var(--ys-side-line);margin:22px 0}
+
+  .ys-co-total-row{
+    display:flex;justify-content:space-between;font-size:14px;margin-bottom:10px;
+    color:var(--ys-side-muted);
+  }
+  .ys-co-total-row span:last-child{color:#fff;font-weight:600}
+  .ys-co-total-row.grand{
+    font-size:22px;font-weight:900;margin-top:18px;padding-top:18px;
+    border-top:1px solid var(--ys-side-line);color:#fff;
+  }
+  .ys-co-total-row.grand span:last-child{color:var(--ys-red)}
+  .ys-co-free{color:var(--ys-success);font-weight:800}
+
+  .ys-co-trust{
+    margin-top:24px;padding:16px;background:rgba(255,255,255,.04);
+    border:1px solid var(--ys-side-line);border-radius:var(--ys-radius);
+    font-size:12px;color:var(--ys-side-muted);
+  }
+  .ys-co-trust-title{
+    font-weight:700;color:#fff;margin-bottom:8px;
+    display:flex;align-items:center;gap:6px;font-size:13px;
+  }
+  .ys-co-methods{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .ys-co-method-chip{
+    background:#1c1c1c;padding:5px 10px;border-radius:6px;
+    font-size:11px;font-weight:700;color:#fff;
+    border:1px solid var(--ys-side-line);
+  }
+
+  .ys-co-empty{text-align:center;padding:80px 24px;background:#fff}
+  .ys-co-empty h2{margin:0 0 12px;font-size:24px}
+  .ys-co-empty p{color:var(--ys-muted);margin:0 0 24px}
+  .ys-co-empty a{
+    display:inline-block;padding:14px 28px;background:var(--ys-red);color:#fff;
+    text-decoration:none;border-radius:var(--ys-radius);font-weight:800;
+  }
+
+  /* Mobile toggle bar */
+  .ys-co-summary-toggle{
+    display:none;justify-content:space-between;align-items:center;
+    padding:14px 20px;background:#0e0e0e;color:#fff;cursor:pointer;
+    border-bottom:1px solid var(--ys-side-line);
+  }
+  .ys-co-summary-toggle-left{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+  .ys-co-summary-toggle-total{font-size:18px;font-weight:900;color:var(--ys-red)}
+  .ys-co-chevron{width:14px;height:14px;transition:transform .2s;color:var(--ys-side-muted)}
+  .ys-co-summary-toggle.open .ys-co-chevron{transform:rotate(180deg)}
+
+  /* MOBILE */
+  @media (max-width: 900px){
+    .ys-co-wrap{grid-template-columns:1fr}
+    .ys-co-left{padding:24px 20px 40px;max-width:100%;justify-self:stretch;order:2}
+    .ys-co-right{padding:0;border-left:none;order:1}
+    .ys-co-right .ys-co-summary-inner{padding:20px;display:none}
+    .ys-co-right.open .ys-co-summary-inner{display:block}
+    .ys-co-summary-toggle{display:flex}
+    .ys-co-summary-header{display:none}
+    .ys-co-total-row.grand{font-size:20px}
+  }
+</style>
+
+<div class="ys-co-wrap" id="ysCheckoutRoot">
+  <section class="ys-co-left">
+    <div class="ys-co-header">
+      <a href="/" class="ys-co-brand">YISUS STORE</a>
+      <a href="/tienda" class="ys-co-back">← Volver a la tienda</a>
+    </div>
+
+    <div id="ysCoContent">
+      <form id="ysCoForm" novalidate>
+        <h2 class="ys-co-section-title">Contacto</h2>
+        <div class="ys-co-field">
+          <input type="email" name="email" class="ys-co-input" required placeholder=" " id="ys-email" autocomplete="email">
+          <label for="ys-email" class="ys-co-label">Correo electrónico *</label>
+        </div>
+
+        <h2 class="ys-co-section-title">Datos de envío</h2>
+        <div class="ys-co-row">
+          <div class="ys-co-field">
+            <input type="text" name="firstName" class="ys-co-input" required placeholder=" " id="ys-first" autocomplete="given-name">
+            <label for="ys-first" class="ys-co-label">Nombre *</label>
+          </div>
+          <div class="ys-co-field">
+            <input type="text" name="lastName" class="ys-co-input" required placeholder=" " id="ys-last" autocomplete="family-name">
+            <label for="ys-last" class="ys-co-label">Apellidos *</label>
+          </div>
+        </div>
+
+        <div class="ys-co-field">
+          <input type="tel" name="phone" class="ys-co-input" required placeholder=" " id="ys-phone" inputmode="numeric" autocomplete="tel" pattern="[0-9]{10}">
+          <label for="ys-phone" class="ys-co-label">Celular (10 dígitos) *</label>
+        </div>
+
+        <div class="ys-co-field">
+          <input type="text" name="address" class="ys-co-input" required placeholder=" " id="ys-address" autocomplete="address-line1">
+          <label for="ys-address" class="ys-co-label">Dirección *</label>
+        </div>
+
+        <div class="ys-co-field">
+          <input type="text" name="extraAddress" class="ys-co-input" placeholder=" " id="ys-extra" autocomplete="address-line2">
+          <label for="ys-extra" class="ys-co-label">Apto / Torre / Casa (opcional)</label>
+        </div>
+
+        <div class="ys-co-field">
+          <input type="text" name="neighborhood" class="ys-co-input" required placeholder=" " id="ys-nbhd">
+          <label for="ys-nbhd" class="ys-co-label">Barrio *</label>
+        </div>
+
+        <div class="ys-co-row">
+          <div class="ys-co-field">
+            <input type="text" name="city" class="ys-co-input" required placeholder=" " id="ys-city" autocomplete="address-level2">
+            <label for="ys-city" class="ys-co-label">Ciudad *</label>
+          </div>
+          <div class="ys-co-field">
+            <input type="text" name="department" class="ys-co-input" required placeholder=" " id="ys-dept" autocomplete="address-level1">
+            <label for="ys-dept" class="ys-co-label">Departamento *</label>
+          </div>
+        </div>
+
+        <div class="ys-co-field">
+          <textarea name="notes" class="ys-co-textarea" placeholder="Notas de entrega (opcional): dejar en portería, llamar antes..." id="ys-notes"></textarea>
+        </div>
+
+        <h2 class="ys-co-section-title">Método de envío</h2>
+        <div class="ys-co-ship-option">
+          <span>Envío nacional (2-5 días hábiles)</span>
+          <span class="free">GRATIS</span>
+        </div>
+
+        <button type="submit" class="ys-co-cta" id="ysCoSubmit">Pagar con Wompi</button>
+
+        <div class="ys-co-error" id="ysCoError"></div>
+
+        <div class="ys-co-secure">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Pagos 100% seguros procesados por Wompi
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <aside class="ys-co-right" id="ysCoRight">
+    <div class="ys-co-summary-toggle" id="ysCoToggle">
+      <div class="ys-co-summary-toggle-left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span id="ysCoToggleText">Ver resumen del pedido</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="ys-co-summary-toggle-total" id="ysCoMobileTotal"></div>
+        <svg class="ys-co-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="ys-co-summary-inner">
+      <div class="ys-co-summary-header">Resumen del pedido</div>
+      <div id="ysCoItems"></div>
+
+      <div class="ys-co-divider"></div>
+
+      <div class="ys-co-total-row">
+        <span>Subtotal</span>
+        <span id="ysCoSubtotal">COP 0</span>
+      </div>
+      <div class="ys-co-total-row">
+        <span>Envío</span>
+        <span class="ys-co-free">GRATIS</span>
+      </div>
+      <div class="ys-co-total-row grand">
+        <span>Total</span>
+        <span id="ysCoTotal">COP 0</span>
+      </div>
+
+      <div class="ys-co-trust">
+        <div class="ys-co-trust-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Compra 100% segura
+        </div>
+        Tus datos y tu pago están protegidos por Wompi (Grupo Bancolombia).
+        <div class="ys-co-methods">
+          <span class="ys-co-method-chip">Visa</span>
+          <span class="ys-co-method-chip">Master</span>
+          <span class="ys-co-method-chip">PSE</span>
+          <span class="ys-co-method-chip">Nequi</span>
+          <span class="ys-co-method-chip">Bancolombia</span>
+          <span class="ys-co-method-chip">Daviplata</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  document.body.classList.add('yisus-checkout');
+
+  var API_URL = "https://yisus-store-checkout.vercel.app/api/create-transaction";
+  var STORAGE_KEY = "yisus_checkout";
+
+  var raw = localStorage.getItem(STORAGE_KEY);
+  var checkoutData = null;
+  try { checkoutData = raw ? JSON.parse(raw) : null; } catch(e) {}
+
+  if (!checkoutData || (!(checkoutData.items && checkoutData.items.length) && !checkoutData.title)) {
+    document.getElementById('ysCoContent').innerHTML =
+      '<div class="ys-co-empty">' +
+      '<h2>Tu carrito está vacío</h2>' +
+      '<p>Agrega productos antes de continuar al pago.</p>' +
+      '<a href="/tienda">Ir a la tienda</a>' +
+      '</div>';
+    document.getElementById('ysCoRight').style.display = 'none';
+    return;
+  }
+
+  var items = (checkoutData.items && checkoutData.items.length)
+    ? checkoutData.items
+    : [{ title: checkoutData.title, unit_price: checkoutData.price, quantity: checkoutData.quantity || 1, image: checkoutData.image }];
+
+  function formatCOP(n) {
+    return 'COP ' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n || 0);
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function renderItems() {
+    var container = document.getElementById('ysCoItems');
+    var subtotal = 0;
+    var html = '';
+
+    items.forEach(function(item){
+      var qty = Number(item.quantity) || 1;
+      var unit = Number(item.unit_price) || 0;
+      var line = unit * qty;
+      subtotal += line;
+
+      var thumbHtml;
+      if (item.image) {
+        thumbHtml = '<div class="ys-co-thumb" style="background-image:url(\'' + esc(item.image) + '\');"><div class="ys-co-thumb-badge">' + qty + '</div></div>';
+      } else {
+        var initial = (item.title || '?').charAt(0).toUpperCase();
+        thumbHtml = '<div class="ys-co-thumb ys-co-thumb-fallback">' + esc(initial) + '<div class="ys-co-thumb-badge">' + qty + '</div></div>';
+      }
+
+      html += '<div class="ys-co-summary-item">' +
+        thumbHtml +
+        '<div class="ys-co-item-meta"><div class="ys-co-item-title">' + esc(item.title) + '</div></div>' +
+        '<div class="ys-co-item-price">' + formatCOP(line) + '</div>' +
+        '</div>';
+    });
+
+    container.innerHTML = html;
+    document.getElementById('ysCoSubtotal').textContent = formatCOP(subtotal);
+    document.getElementById('ysCoTotal').textContent = formatCOP(subtotal);
+    document.getElementById('ysCoMobileTotal').textContent = formatCOP(subtotal);
+  }
+
+  renderItems();
+
+  var toggle = document.getElementById('ysCoToggle');
+  var right = document.getElementById('ysCoRight');
+  var toggleText = document.getElementById('ysCoToggleText');
+  toggle.addEventListener('click', function () {
+    right.classList.toggle('open');
+    toggle.classList.toggle('open');
+    toggleText.textContent = right.classList.contains('open') ? 'Ocultar resumen' : 'Ver resumen del pedido';
+  });
+
+  document.getElementById('ysCoForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    var submitBtn = document.getElementById('ysCoSubmit');
+    var errBox = document.getElementById('ysCoError');
+    errBox.style.display = 'none';
+
+    var fd = new FormData(this);
+    var firstName = (fd.get('firstName') || '').trim();
+    var lastName = (fd.get('lastName') || '').trim();
+    var fullName = (firstName + ' ' + lastName).trim();
+    var phone = (fd.get('phone') || '').replace(/\D/g,'');
+
+    if (!/^\d{10}$/.test(phone)) {
+      errBox.textContent = 'El celular debe tener 10 dígitos (ej: 3108962777).';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Redirigiendo a Wompi...';
+
+    var shipping = {
+      fullName: fullName,
+      email: fd.get('email'),
+      phone: phone,
+      department: fd.get('department'),
+      city: fd.get('city'),
+      address: fd.get('address'),
+      neighborhood: fd.get('neighborhood'),
+      extraAddress: fd.get('extraAddress') || '',
+      notes: fd.get('notes') || '',
+    };
+
+    var payload;
+    if (items.length > 1) {
+      payload = { items: items, shipping: shipping, shipping_cost: 0, discount_amount: 0 };
+    } else {
+      payload = {
+        title: items[0].title,
+        price: items[0].unit_price,
+        quantity: items[0].quantity,
+        shipping: shipping,
+        shipping_cost: 0,
+        discount_amount: 0,
+      };
+    }
+
+    try {
+      var res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      var data = await res.json();
+
+      if (data.checkout_url) {
+        localStorage.removeItem(STORAGE_KEY);
+        window.location.href = data.checkout_url;
+      } else {
+        errBox.textContent = data.error || 'No fue posible iniciar el pago. Intenta de nuevo.';
+        errBox.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Pagar con Wompi';
+      }
+    } catch (err) {
+      errBox.textContent = 'Error de conexión. Verifica tu internet e intenta de nuevo.';
+      errBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Pagar con Wompi';
+    }
+  });
+})();
+</script>

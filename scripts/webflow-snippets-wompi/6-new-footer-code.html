@@ -1,0 +1,126 @@
+<!--
+  YISUS STORE — Footer Code (versión con página /checkout dedicada).
+  Reemplaza TODO el Footer Code actual por este.
+  Ya no incluye el modal ni el form: solo lee el carrito/producto y navega a /checkout.
+-->
+<script>
+(function () {
+  var STORAGE_KEY = "yisus_checkout";
+  var CHECKOUT_URL = "/checkout";
+
+  function parseCOP(text) {
+    if (!text) return 0;
+    return parseFloat(
+      String(text).replace(/COP/gi, "").replace(/\$/g, "").replace(/\s/g, "").replace(/,/g, "")
+    );
+  }
+
+  function extractImage(scope) {
+    if (!scope) return null;
+    var img = scope.querySelector("img");
+    if (img && img.src && !img.src.startsWith("data:")) return img.src;
+    return null;
+  }
+
+  function getSingleProduct(button) {
+    var card = button.closest(".w-dyn-item") || button.closest(".product-card") || document;
+
+    var title =
+      (card.querySelector(".product-title") && card.querySelector(".product-title").textContent.trim()) ||
+      (card.querySelector("h1,h2,h3") && card.querySelector("h1,h2,h3").textContent.trim());
+
+    var priceText = (card.querySelector(".product-price") && card.querySelector(".product-price").textContent) || "";
+    var price = parseCOP(priceText);
+    var image = extractImage(card);
+
+    if (!title || !price) {
+      alert("No se pudo leer el producto o el precio.");
+      return null;
+    }
+    return { title: title, price: price, quantity: 1, image: image };
+  }
+
+  function getCartItems(button) {
+    var cart =
+      document.querySelector(".w-commerce-commercecartcontainer") ||
+      document.querySelector(".w-commerce-commercecartwrapper") ||
+      button.closest("[class*='Cart']") ||
+      document;
+
+    var possibleItems = Array.prototype.slice.call(cart.querySelectorAll("*")).filter(function (el) {
+      var text = el.textContent || "";
+      return text.indexOf("COP") !== -1 && el.querySelector("input[type='number']");
+    });
+
+    var items = [];
+
+    possibleItems.forEach(function (item) {
+      var qtyInput = item.querySelector("input[type='number']");
+      var quantity = Number(qtyInput && qtyInput.value) || 1;
+
+      var allText = Array.prototype.slice.call(item.querySelectorAll("*")).filter(function (el) {
+        var text = el.textContent.trim();
+        return text && text.length < 120;
+      });
+
+      var priceEl = allText.find(function (el) { return el.textContent.indexOf("COP") !== -1; });
+      var unit_price = parseCOP(priceEl ? priceEl.textContent : "");
+
+      var title = "";
+      for (var i = 0; i < allText.length; i++) {
+        var text = allText[i].textContent.trim();
+        if (
+          text &&
+          text.indexOf("COP") === -1 &&
+          !/^\d+$/.test(text) &&
+          text.length > 3 &&
+          text.toLowerCase() !== "carrito" &&
+          text.toLowerCase() !== "subtotal" &&
+          text.toLowerCase() !== "comprar" &&
+          text.toLowerCase().indexOf("continuar") === -1
+        ) {
+          title = text;
+          break;
+        }
+      }
+
+      var image = extractImage(item);
+
+      if (title && unit_price > 0) {
+        items.push({ title: title, quantity: quantity, unit_price: unit_price, image: image });
+      }
+    });
+
+    var unique = [];
+    var seen = {};
+    items.forEach(function (it) {
+      var key = it.title + "|" + it.unit_price;
+      if (!seen[key]) { seen[key] = true; unique.push(it); }
+    });
+
+    if (!unique.length) {
+      alert("No se pudieron leer los productos del carrito.");
+      return null;
+    }
+    return { items: unique };
+  }
+
+  document.addEventListener("click", function (e) {
+    var cartButton = e.target.closest(".mp-cart-pay-button");
+    var singleButton = e.target.closest(".mp-buy-button");
+    if (!cartButton && !singleButton) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    var payload = cartButton ? getCartItems(cartButton) : getSingleProduct(singleButton);
+    if (!payload) return;
+
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }
+    catch (err) { alert("No se pudo guardar el carrito. Habilita el almacenamiento local."); return; }
+
+    window.location.href = CHECKOUT_URL;
+  }, true);
+})();
+</script>
