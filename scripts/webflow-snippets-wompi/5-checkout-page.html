@@ -378,12 +378,23 @@
   </aside>
 </div>
 
-<script>
-(function () {
-  document.body.classList.add('yisus-checkout');
+<div id="ysCoDebugBar" style="display:none;position:fixed;top:0;left:0;right:0;background:#fef3c7;color:#92400e;padding:8px 14px;font-family:monospace;font-size:12px;z-index:99999;border-bottom:2px solid #f59e0b;"></div>
 
-  var API_URL = "https://yisus-store-checkout.vercel.app/api/create-transaction";
-  var STORAGE_KEY = "yisus_checkout";
+<script>
+function ysCoDebug(msg, isError) {
+  var el = document.getElementById('ysCoDebugBar');
+  if (!el) return;
+  if (isError) { el.style.background = '#fee2e2'; el.style.color = '#991b1b'; el.style.borderColor = '#dc2626'; }
+  el.style.display = 'block';
+  el.textContent = 'YISUS DEBUG → ' + msg;
+}
+
+function ysCoInit() {
+  try {
+    document.body.classList.add('yisus-checkout');
+
+    var API_URL = "https://yisus-store-checkout.vercel.app/api/create-transaction";
+    var STORAGE_KEY = "yisus_checkout";
 
   // Reglas de envío — deben coincidir con las del backend (create-transaction.js).
   var FREE_SHIPPING_THRESHOLD = 150000;
@@ -392,24 +403,29 @@
     return sub >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
   }
 
-  var raw = localStorage.getItem(STORAGE_KEY);
-  var checkoutData = null;
-  try { checkoutData = raw ? JSON.parse(raw) : null; } catch(e) {}
+    var raw = localStorage.getItem(STORAGE_KEY);
+    ysCoDebug('localStorage raw len=' + (raw ? raw.length : 0) + ' | ' + (raw || '(empty)').slice(0, 200));
 
-  if (!checkoutData || (!(checkoutData.items && checkoutData.items.length) && !checkoutData.title)) {
-    document.getElementById('ysCoContent').innerHTML =
-      '<div class="ys-co-empty">' +
-      '<h2>Tu carrito está vacío</h2>' +
-      '<p>Agrega productos antes de continuar al pago.</p>' +
-      '<a href="/shop">Ir a la tienda</a>' +
-      '</div>';
-    document.getElementById('ysCoRight').style.display = 'none';
-    return;
-  }
+    var checkoutData = null;
+    try { checkoutData = raw ? JSON.parse(raw) : null; } catch(e) { ysCoDebug('JSON parse failed: ' + e.message, true); }
 
-  var items = (checkoutData.items && checkoutData.items.length)
-    ? checkoutData.items
-    : [{ title: checkoutData.title, unit_price: checkoutData.price, quantity: checkoutData.quantity || 1, image: checkoutData.image }];
+    if (!checkoutData || (!(checkoutData.items && checkoutData.items.length) && !checkoutData.title)) {
+      ysCoDebug('EMPTY STATE triggered — checkoutData=' + JSON.stringify(checkoutData), true);
+      document.getElementById('ysCoContent').innerHTML =
+        '<div class="ys-co-empty">' +
+        '<h2>Tu carrito está vacío</h2>' +
+        '<p>Agrega productos antes de continuar al pago.</p>' +
+        '<a href="/shop">Ir a la tienda</a>' +
+        '</div>';
+      document.getElementById('ysCoRight').style.display = 'none';
+      return;
+    }
+
+    var items = (checkoutData.items && checkoutData.items.length)
+      ? checkoutData.items
+      : [{ title: checkoutData.title, unit_price: checkoutData.price, quantity: checkoutData.quantity || 1, image: checkoutData.image }];
+
+    ysCoDebug('items count=' + items.length + ' | first unit_price=' + (items[0] && items[0].unit_price));
 
   function formatCOP(n) {
     return 'COP ' + new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n || 0);
@@ -572,5 +588,12 @@
       submitBtn.textContent = 'Pagar con Wompi';
     }
   });
-})();
+  } catch(fatal) { ysCoDebug('FATAL: ' + (fatal && fatal.message ? fatal.message : String(fatal)), true); }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', ysCoInit);
+} else {
+  ysCoInit();
+}
 </script>
