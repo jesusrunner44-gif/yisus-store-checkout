@@ -98,6 +98,28 @@
     background:#fafafa;font-size:14px;font-weight:600;
   }
   .ys-co-ship-option .free{color:var(--ys-success);font-weight:800}
+  .ys-co-ship-option .cost{color:var(--ys-ink);font-weight:800}
+
+  .ys-co-free-nudge{
+    background:#fff8f7;border:1px dashed var(--ys-red);
+    padding:12px 14px;border-radius:var(--ys-radius);font-size:13px;
+    color:var(--ys-ink);margin-bottom:16px;line-height:1.4;
+  }
+  .ys-co-free-nudge b{color:var(--ys-red)}
+  .ys-co-free-nudge-progress{
+    height:6px;background:#f5d5d1;border-radius:999px;
+    margin-top:8px;overflow:hidden;
+  }
+  .ys-co-free-nudge-bar{
+    height:100%;background:var(--ys-red);border-radius:999px;
+    transition:width .3s ease;
+  }
+  .ys-co-free-nudge.achieved{
+    background:#e8f9ee;border-color:var(--ys-success);color:#0a5a2b;
+  }
+  .ys-co-free-nudge.achieved b{color:var(--ys-success)}
+  .ys-co-free-nudge.achieved .ys-co-free-nudge-progress{background:#c3edd0}
+  .ys-co-free-nudge.achieved .ys-co-free-nudge-bar{background:var(--ys-success)}
 
   .ys-co-cta{
     width:100%;padding:18px 24px;background:var(--ys-red);color:#fff;
@@ -270,9 +292,9 @@
         </div>
 
         <h2 class="ys-co-section-title">Método de envío</h2>
-        <div class="ys-co-ship-option">
+        <div class="ys-co-ship-option" id="ysCoShipOption">
           <span>Envío nacional (2-5 días hábiles)</span>
-          <span class="free">GRATIS</span>
+          <span id="ysCoShipLabel">—</span>
         </div>
 
         <button type="submit" class="ys-co-cta" id="ysCoSubmit">Pagar con Wompi</button>
@@ -301,6 +323,7 @@
 
     <div class="ys-co-summary-inner">
       <div class="ys-co-summary-header">Resumen del pedido</div>
+      <div id="ysCoNudge" style="display:none;"></div>
       <div id="ysCoItems"></div>
 
       <div class="ys-co-divider"></div>
@@ -311,7 +334,7 @@
       </div>
       <div class="ys-co-total-row">
         <span>Envío</span>
-        <span class="ys-co-free">GRATIS</span>
+        <span id="ysCoShipSummary">—</span>
       </div>
       <div class="ys-co-total-row grand">
         <span>Total</span>
@@ -343,6 +366,13 @@
 
   var API_URL = "https://yisus-store-checkout.vercel.app/api/create-transaction";
   var STORAGE_KEY = "yisus_checkout";
+
+  // Reglas de envío — deben coincidir con las del backend (create-transaction.js).
+  var FREE_SHIPPING_THRESHOLD = 150000;
+  var FLAT_SHIPPING_COST = 13000;
+  function computeShipping(sub) {
+    return sub >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
+  }
 
   var raw = localStorage.getItem(STORAGE_KEY);
   var checkoutData = null;
@@ -400,9 +430,45 @@
     });
 
     container.innerHTML = html;
+
+    var shipping = computeShipping(subtotal);
+    var grandTotal = subtotal + shipping;
+
     document.getElementById('ysCoSubtotal').textContent = formatCOP(subtotal);
-    document.getElementById('ysCoTotal').textContent = formatCOP(subtotal);
-    document.getElementById('ysCoMobileTotal').textContent = formatCOP(subtotal);
+    document.getElementById('ysCoTotal').textContent = formatCOP(grandTotal);
+    document.getElementById('ysCoMobileTotal').textContent = formatCOP(grandTotal);
+
+    // Ship row in summary (right column)
+    var shipSummaryEl = document.getElementById('ysCoShipSummary');
+    if (shipping === 0) {
+      shipSummaryEl.innerHTML = '<span class="ys-co-free">GRATIS</span>';
+    } else {
+      shipSummaryEl.innerHTML = '<span style="color:#fff;font-weight:700;">' + formatCOP(shipping) + '</span>';
+    }
+
+    // Ship option in form (left column)
+    var shipLabelEl = document.getElementById('ysCoShipLabel');
+    if (shipping === 0) {
+      shipLabelEl.innerHTML = '<span class="free">GRATIS</span>';
+    } else {
+      shipLabelEl.innerHTML = '<span class="cost">' + formatCOP(shipping) + '</span>';
+    }
+
+    // Free-shipping nudge
+    var nudgeEl = document.getElementById('ysCoNudge');
+    if (shipping === 0) {
+      nudgeEl.className = 'ys-co-free-nudge achieved';
+      nudgeEl.style.display = 'block';
+      nudgeEl.innerHTML = '<span>✅ <b>¡Envío gratis desbloqueado!</b></span>' +
+        '<div class="ys-co-free-nudge-progress"><div class="ys-co-free-nudge-bar" style="width:100%"></div></div>';
+    } else {
+      var falta = FREE_SHIPPING_THRESHOLD - subtotal;
+      var pct = Math.max(0, Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100));
+      nudgeEl.className = 'ys-co-free-nudge';
+      nudgeEl.style.display = 'block';
+      nudgeEl.innerHTML = 'Te faltan <b>' + formatCOP(falta) + '</b> para envío gratis 🚚' +
+        '<div class="ys-co-free-nudge-progress"><div class="ys-co-free-nudge-bar" style="width:' + pct + '%"></div></div>';
+    }
   }
 
   renderItems();

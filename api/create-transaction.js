@@ -9,6 +9,15 @@ const ALLOWED_ORIGINS = [
 const REDIRECT_URL = 'https://yisusstore.com/pago-pendiente-pago-en-proceso';
 const CURRENCY = 'COP';
 
+// Shipping rules (source of truth — the client can suggest a value but the
+// backend always recomputes and overrides).
+const FREE_SHIPPING_THRESHOLD = 150000;
+const FLAT_SHIPPING_COST = 13000;
+
+function computeShipping(subtotal) {
+  return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
+}
+
 const REQUIRED_SHIPPING = [
   'fullName', 'email', 'phone', 'department', 'city', 'address', 'neighborhood',
 ];
@@ -99,10 +108,11 @@ export default async function handler(req, res) {
   const shippingError = validateShipping(body.shipping);
   if (shippingError) return res.status(400).json({ error: shippingError });
 
-  const { shipping, coupon_code, discount_amount, payment_method, internal_notes, shipping_cost } = body;
-  const shippingCost = Number(shipping_cost ?? 0);
+  const { shipping, coupon_code, discount_amount, payment_method, internal_notes } = body;
   const discount = Number(discount_amount ?? 0);
-  const grandTotal = Math.max(0, total + shippingCost - discount);
+  const subtotalAfterDiscount = Math.max(0, total - discount);
+  const shippingCost = computeShipping(subtotalAfterDiscount);
+  const grandTotal = subtotalAfterDiscount + shippingCost;
   const amountInCents = Math.round(grandTotal * 100);
 
   if (amountInCents < 150000) {
