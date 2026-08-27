@@ -10,9 +10,30 @@
 
   function parseCOP(text) {
     if (!text) return 0;
-    return parseFloat(
-      String(text).replace(/COP/gi, "").replace(/\$/g, "").replace(/\s/g, "").replace(/,/g, "")
-    );
+    var raw = null;
+    // Prefer a COP/$ prefixed number (avoids grabbing the quantity input value).
+    var m = String(text).match(/(?:COP|\$)\s*([\d]+(?:[.,]\d+)*)/i);
+    if (m) raw = m[1];
+    else {
+      m = String(text).match(/([\d]+(?:[.,]\d+)*)/);
+      if (m) raw = m[1];
+    }
+    if (!raw) return 0;
+    // Normalize thousands/decimal separators.
+    if (raw.indexOf('.') !== -1 && raw.indexOf(',') !== -1) {
+      if (raw.lastIndexOf('.') > raw.lastIndexOf(',')) {
+        raw = raw.replace(/,/g, '');
+      } else {
+        raw = raw.replace(/\./g, '').replace(',', '.');
+      }
+    } else if (raw.indexOf(',') !== -1) {
+      raw = raw.replace(/,/g, '');
+    } else if (raw.indexOf('.') !== -1) {
+      var parts = raw.split('.');
+      if (parts[parts.length - 1].length === 3) raw = raw.replace(/\./g, '');
+    }
+    var n = parseFloat(raw);
+    return isNaN(n) ? 0 : n;
   }
 
   function extractImage(scope) {
