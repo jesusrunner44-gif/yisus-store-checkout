@@ -41,7 +41,7 @@ function ysCoInit() {
     var hasTitle = data && data.title;
 
     if (!data || (!hasItems && !hasTitle)) {
-      ysCoDebug('EMPTY: ' + JSON.stringify(data), true);
+      ysCoDebug('EMPTY: ' + JSON.stringify(data));
       var emp = '';
       emp += '<div class="ys-co-empty">';
       emp += '<h2>Tu carrito esta vacio</h2>';
