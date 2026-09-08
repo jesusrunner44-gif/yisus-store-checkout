@@ -1,11 +1,13 @@
 function ysCoDebug(msg, err) {
+  if (!err) {
+    if (window.console) console.log('[ysCheckout]', msg);
+    return;
+  }
   var el = document.getElementById('ysCoDebugBar');
   if (!el) return;
-  if (err) {
-    el.style.background = '#fee2e2';
-    el.style.color = '#991b1b';
-    el.style.borderColor = '#dc2626';
-  }
+  el.style.background = '#fee2e2';
+  el.style.color = '#991b1b';
+  el.style.borderColor = '#dc2626';
   el.style.display = 'block';
   el.textContent = 'YISUS DEBUG > ' + msg;
 }
