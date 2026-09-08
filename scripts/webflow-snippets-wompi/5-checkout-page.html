@@ -121,6 +121,14 @@
   .ys-co-free-nudge.achieved .ys-co-free-nudge-progress{background:#c3edd0}
   .ys-co-free-nudge.achieved .ys-co-free-nudge-bar{background:var(--ys-success)}
 
+  .ys-co-free-nudge.below-min{
+    background:#fee4e2;border:1px solid var(--ys-red);color:#7f1d1d;
+    font-weight:600;
+  }
+  .ys-co-free-nudge.below-min b{color:var(--ys-red)}
+  .ys-co-free-nudge.below-min .ys-co-free-nudge-progress{background:#fecaca}
+  .ys-co-free-nudge.below-min .ys-co-free-nudge-bar{background:var(--ys-red)}
+
   .ys-co-cta{
     width:100%;padding:18px 24px;background:var(--ys-red);color:#fff;
     border:none;border-radius:var(--ys-radius);font-size:17px;font-weight:800;
@@ -292,12 +300,18 @@
 
         <div class="ys-co-row">
           <div class="ys-co-field">
-            <input type="text" name="city" class="ys-co-input" required placeholder=" " id="ys-city" autocomplete="address-level2">
-            <label for="ys-city" class="ys-co-label">Ciudad *</label>
+            <input type="text" name="department" list="ys-depts-list"
+              class="ys-co-input" required placeholder=" " id="ys-dept"
+              autocomplete="address-level1" autocapitalize="words">
+            <label for="ys-dept" class="ys-co-label">Departamento *</label>
+            <datalist id="ys-depts-list"></datalist>
           </div>
           <div class="ys-co-field">
-            <input type="text" name="department" class="ys-co-input" required placeholder=" " id="ys-dept" autocomplete="address-level1">
-            <label for="ys-dept" class="ys-co-label">Departamento *</label>
+            <input type="text" name="city" list="ys-cities-list"
+              class="ys-co-input" required placeholder=" " id="ys-city"
+              autocomplete="address-level2" autocapitalize="words">
+            <label for="ys-city" class="ys-co-label">Ciudad *</label>
+            <datalist id="ys-cities-list"></datalist>
           </div>
         </div>
 
@@ -402,6 +416,7 @@ function ysCoInit() {
     var KEY = "yisus_checkout";
     var FREE = 150000;
     var FLAT = 13000;
+    var MIN_ORDER = 120000;
 
     function computeShipping(sub) {
       return sub >= FREE ? 0 : FLAT;
@@ -541,7 +556,28 @@ function ysCoInit() {
       }
 
       var nudge = document.getElementById('ysCoNudge');
-      if (ship === 0) {
+      var submitBtn = document.getElementById('ysCoSubmit');
+      if (subtotal < MIN_ORDER) {
+        var faltaMin = MIN_ORDER - subtotal;
+        var pctMin = (subtotal / MIN_ORDER) * 100;
+        if (pctMin < 0) pctMin = 0;
+        if (pctMin > 100) pctMin = 100;
+        nudge.className = 'ys-co-free-nudge below-min';
+        nudge.style.display = 'block';
+        var nM = '';
+        nM += 'Pedido minimo <b>' + fmt(MIN_ORDER) + '</b>. ';
+        nM += 'Te faltan <b>' + fmt(faltaMin) + '</b>';
+        nM += '<div class="ys-co-free-nudge-progress">';
+        nM += '<div class="ys-co-free-nudge-bar" style="width:';
+        nM += pctMin;
+        nM += '%"></div>';
+        nM += '</div>';
+        nudge.innerHTML = nM;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Pedido minimo ' + fmt(MIN_ORDER);
+        }
+      } else if (ship === 0) {
         nudge.className = 'ys-co-free-nudge achieved';
         nudge.style.display = 'block';
         var n1 = '';
@@ -550,6 +586,10 @@ function ysCoInit() {
         n1 += '<div class="ys-co-free-nudge-bar" style="width:100%"></div>';
         n1 += '</div>';
         nudge.innerHTML = n1;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Pagar con Wompi';
+        }
       } else {
         var falta = FREE - subtotal;
         var pct = (subtotal / FREE) * 100;
@@ -565,6 +605,10 @@ function ysCoInit() {
         n2 += '%"></div>';
         n2 += '</div>';
         nudge.innerHTML = n2;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Pagar con Wompi';
+        }
       }
 
       ysCoDebug(
@@ -575,6 +619,90 @@ function ysCoInit() {
     }
 
     render();
+
+    // ─── DIVIPOLA: dept + city selectors backed by DANE dataset ────
+    var DIVIPOLA_URL =
+      'https://yisus-store-checkout.vercel.app/api/divipola';
+    var YS_GEO = null;
+
+    function ysGeoNorm(s) {
+      var t = String(s == null ? '' : s).trim().toLowerCase();
+      t = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      return t;
+    }
+
+    function ysFindDept(key) {
+      if (!YS_GEO) return null;
+      var n = ysGeoNorm(key);
+      var keys = Object.keys(YS_GEO);
+      for (var i = 0; i < keys.length; i++) {
+        if (ysGeoNorm(keys[i]) === n) return keys[i];
+      }
+      return null;
+    }
+
+    function ysFindCity(dept, key) {
+      if (!YS_GEO || !YS_GEO[dept]) return null;
+      var n = ysGeoNorm(key);
+      var arr = YS_GEO[dept];
+      for (var i = 0; i < arr.length; i++) {
+        if (ysGeoNorm(arr[i]) === n) return arr[i];
+      }
+      return null;
+    }
+
+    function ysBuildOpts(values) {
+      var out = '';
+      for (var i = 0; i < values.length; i++) {
+        var v = String(values[i])
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;');
+        out += '<option value="' + v + '"></option>';
+      }
+      return out;
+    }
+
+    function ysPopulateDepts() {
+      var dl = document.getElementById('ys-depts-list');
+      if (!dl || !YS_GEO) return;
+      var keys = Object.keys(YS_GEO).sort(function (a, b) {
+        return a.localeCompare(b, 'es');
+      });
+      dl.innerHTML = ysBuildOpts(keys);
+    }
+
+    function ysPopulateCities(dept) {
+      var dl = document.getElementById('ys-cities-list');
+      if (!dl) return;
+      var arr = (YS_GEO && YS_GEO[dept]) || [];
+      dl.innerHTML = ysBuildOpts(arr);
+    }
+
+    var deptInp = document.getElementById('ys-dept');
+    var cityInp = document.getElementById('ys-city');
+
+    if (deptInp && cityInp) {
+      deptInp.addEventListener('input', function () {
+        var canonical = ysFindDept(deptInp.value);
+        cityInp.value = '';
+        ysPopulateCities(canonical || '__none__');
+      });
+    }
+
+    fetch(DIVIPOLA_URL)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        YS_GEO = d;
+        ysPopulateDepts();
+        if (deptInp && deptInp.value) {
+          var c = ysFindDept(deptInp.value);
+          if (c) ysPopulateCities(c);
+        }
+      })
+      .catch(function () {
+        // Silent fail: user can still type manually.
+        // Server-side validation catches invalid combinations.
+      });
 
     var toggle = document.getElementById('ysCoToggle');
     var right = document.getElementById('ysCoRight');
@@ -605,6 +733,41 @@ function ysCoInit() {
         errBox.textContent = 'El celular debe tener 10 digitos (ej: 3108962777).';
         errBox.style.display = 'block';
         return;
+      }
+
+      var currentSub = items.reduce(function (s, it) {
+        var q = Number(it.quantity) || 1;
+        var u = Number(it.unit_price) || 0;
+        return s + q * u;
+      }, 0);
+      if (currentSub < MIN_ORDER) {
+        errBox.textContent =
+          'Pedido minimo COP ' + MIN_ORDER.toLocaleString('es-CO') + '.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      if (YS_GEO) {
+        var rawDept = (fd.get('department') || '').trim();
+        var rawCity = (fd.get('city') || '').trim();
+        var dK = ysFindDept(rawDept);
+        if (!dK) {
+          errBox.textContent =
+            'Selecciona un departamento valido de la lista.';
+          errBox.style.display = 'block';
+          if (deptInp) deptInp.focus();
+          return;
+        }
+        var cK = ysFindCity(dK, rawCity);
+        if (!cK) {
+          errBox.textContent =
+            'La ciudad debe ser un municipio de ' + dK + '.';
+          errBox.style.display = 'block';
+          if (cityInp) cityInp.focus();
+          return;
+        }
+        fd.set('department', dK);
+        fd.set('city', cK);
       }
 
       submitBtn.disabled = true;

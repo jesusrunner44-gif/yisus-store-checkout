@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { signIntegrity, buildCheckoutUrl } from '../lib/wompi.js';
+import DIVIPOLA from '../data/divipola.json' with { type: 'json' };
 
 const ALLOWED_ORIGINS = [
   'https://yisusstore.com',
@@ -13,6 +14,9 @@ const CURRENCY = 'COP';
 // backend always recomputes and overrides).
 const FREE_SHIPPING_THRESHOLD = 150000;
 const FLAT_SHIPPING_COST = 13000;
+
+// Business minimum order subtotal (after discount, before shipping).
+const MIN_ORDER_SUBTOTAL = 120000;
 
 function computeShipping(subtotal) {
   return subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
@@ -83,6 +87,37 @@ function validateShipping(s) {
   return null;
 }
 
+// Normalize for matching: lowercase + strip diacritics ("Bogotá" → "bogota").
+// This lets us accept manual entries with minor case/accent variations while
+// still storing the canonical spelling in the DB.
+function normalizeGeo(s) {
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+// Validates department + city against the DIVIPOLA dataset (DANE) and
+// returns the canonical spelling.
+function resolveColombianAddress(deptRaw, cityRaw) {
+  const dn = normalizeGeo(deptRaw);
+  const canonicalDept = Object.keys(DIVIPOLA).find((k) => normalizeGeo(k) === dn);
+  if (!canonicalDept) {
+    return {
+      error: `Departamento no válido: "${String(deptRaw).trim()}". Selecciona uno de la lista.`,
+    };
+  }
+  const cn = normalizeGeo(cityRaw);
+  const canonicalCity = DIVIPOLA[canonicalDept].find((k) => normalizeGeo(k) === cn);
+  if (!canonicalCity) {
+    return {
+      error: `La ciudad "${String(cityRaw).trim()}" no pertenece a ${canonicalDept}. Selecciona una de la lista.`,
+    };
+  }
+  return { department: canonicalDept, city: canonicalCity };
+}
+
 export default async function handler(req, res) {
   setCORSHeaders(req, res);
 
@@ -108,9 +143,21 @@ export default async function handler(req, res) {
   const shippingError = validateShipping(body.shipping);
   if (shippingError) return res.status(400).json({ error: shippingError });
 
+  const geoResult = resolveColombianAddress(body.shipping.department, body.shipping.city);
+  if (geoResult.error) return res.status(400).json({ error: geoResult.error });
+  body.shipping.department = geoResult.department;
+  body.shipping.city = geoResult.city;
+
   const { shipping, coupon_code, discount_amount, payment_method, internal_notes } = body;
   const discount = Number(discount_amount ?? 0);
   const subtotalAfterDiscount = Math.max(0, total - discount);
+
+  if (subtotalAfterDiscount < MIN_ORDER_SUBTOTAL) {
+    return res.status(400).json({
+      error: `Pedido mínimo: COP ${MIN_ORDER_SUBTOTAL.toLocaleString('es-CO')}. Agrega más productos para continuar.`,
+    });
+  }
+
   const shippingCost = computeShipping(subtotalAfterDiscount);
   const grandTotal = subtotalAfterDiscount + shippingCost;
   const amountInCents = Math.round(grandTotal * 100);

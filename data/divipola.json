@@ -1,0 +1,140 @@
+{
+  "Amazonas": [
+    "Leticia"
+  ],
+  "Antioquia": [
+    "Apartadó",
+    "Bello",
+    "Envigado",
+    "Itagüí",
+    "Medellín",
+    "Rionegro",
+    "Sabaneta"
+  ],
+  "Arauca": [
+    "Arauca"
+  ],
+  "Atlántico": [
+    "Barranquilla",
+    "Malambo",
+    "Soledad"
+  ],
+  "Bogotá D.C.": [
+    "Bogotá"
+  ],
+  "Bolívar": [
+    "Cartagena de Indias",
+    "Magangué"
+  ],
+  "Boyacá": [
+    "Duitama",
+    "Sogamoso",
+    "Tunja"
+  ],
+  "Caldas": [
+    "Manizales"
+  ],
+  "Caquetá": [
+    "Florencia"
+  ],
+  "Casanare": [
+    "Yopal"
+  ],
+  "Cauca": [
+    "Popayán"
+  ],
+  "Cesar": [
+    "Valledupar"
+  ],
+  "Chocó": [
+    "Quibdó"
+  ],
+  "Córdoba": [
+    "Montería"
+  ],
+  "Cundinamarca": [
+    "Cajicá",
+    "Chía",
+    "Facatativá",
+    "Fusagasugá",
+    "Girardot",
+    "Madrid",
+    "Mosquera",
+    "Soacha",
+    "Zipaquirá"
+  ],
+  "Guainía": [
+    "Inírida"
+  ],
+  "Guaviare": [
+    "San José del Guaviare"
+  ],
+  "Huila": [
+    "Neiva",
+    "Pitalito"
+  ],
+  "La Guajira": [
+    "Maicao",
+    "Riohacha"
+  ],
+  "Magdalena": [
+    "Ciénaga",
+    "Santa Marta"
+  ],
+  "Meta": [
+    "Acacías",
+    "Villavicencio"
+  ],
+  "Nariño": [
+    "Ipiales",
+    "Pasto",
+    "Tumaco"
+  ],
+  "Norte de Santander": [
+    "Cúcuta",
+    "Ocaña"
+  ],
+  "Putumayo": [
+    "Mocoa"
+  ],
+  "Quindío": [
+    "Armenia"
+  ],
+  "Risaralda": [
+    "Dosquebradas",
+    "Pereira"
+  ],
+  "San Andrés y Providencia": [
+    "San Andrés"
+  ],
+  "Santander": [
+    "Barrancabermeja",
+    "Bucaramanga",
+    "Floridablanca",
+    "Girón",
+    "Piedecuesta"
+  ],
+  "Sucre": [
+    "Sincelejo"
+  ],
+  "Tolima": [
+    "El Espinal",
+    "Ibagué"
+  ],
+  "Valle del Cauca": [
+    "Buenaventura",
+    "Buga",
+    "Cali",
+    "Cartago",
+    "Jamundí",
+    "Palmira",
+    "Tuluá",
+    "Yumbo"
+  ],
+  "Vaupés": [
+    "Mitú"
+  ],
+  "Vichada": [
+    "Puerto Carreño"
+  ]
+}
